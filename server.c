@@ -103,19 +103,19 @@ int main(int argc, char **argv)
 /*	echod program	*/
 int echod(int sd)
 {
-	char *bp, buf[BUFLEN], sbuf[BUFLEN], *filename;
+	char *bp;
 	int n, bytes_to_read, fd;
+	FILE * fp = NULL;
 
-	// while (n = read(sd, buf, BUFLEN)) //read from socket
-	// {
 
-	// }
-	read(sd,&anotherRC,24);
+	n = read(sd,&anotherRC,24);
 	//write(1,anotherRC,24);
-	printf("%d %d %s \n", anotherRC.rcid, anotherRC.asn, anotherRC.ipa);
-	//write(sd, buf, n);
+	printf("DATA: %d %d %s \n", anotherRC.rcid, anotherRC.asn, anotherRC.ipa);
+	fd = creat("serverlog.txt",O_RDWR);
+	printf("writing to file?");
+	write(fd, &anotherRC, n);
 	close(sd);
-	close(fd);
+	close(fp);
 	return (0);
 }
 
