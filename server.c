@@ -10,7 +10,6 @@
 #include <strings.h>
 #include <fcntl.h>
 //#include "configreaderv2.h"
-
 #define SERVER_TCP_PORT 3000 /* well-known port */
 #define BUFLEN 256			 /* buffer length */
 #define MAX_ADJ 10
@@ -25,7 +24,13 @@
 	int asn;
 	char ipa[15];
  } myrc,anotherRC, rclist[MAX_ADJ];
-
+ struct rcu{
+	int rcid;
+	int asnsrc;
+	int asndest;
+	int linkcapacity;
+	int linkcost;
+ }rcuv;
 int echod(int);
 void reaper(int);
 void readConfig(struct asninfo *asnlistt,struct rcinfo *myrcc, struct rcinfo *rclistt );
@@ -54,8 +59,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Create a stream socket	*/
-	if ((sd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
-	{
+	if ((sd = socket(AF_INET, SOCK_STREAM, 0)) == -1){
 		fprintf(stderr, "Can't creat a socket\n");
 		exit(1);
 	}
@@ -66,8 +70,7 @@ int main(int argc, char **argv)
 	server.sin_port = htons(port);
 	//server.sin_addr.s_addr = htonl(INADDR_ANY);
 	server.sin_addr.s_addr = inet_addr("127.0.0.1");
-	if (bind(sd, (struct sockaddr *)&server, sizeof(server)) == -1)
-	{
+	if (bind(sd, (struct sockaddr *)&server, sizeof(server)) == -1){
 		fprintf(stderr, "Can't bind name to socket\n");
 		exit(1);
 	}
@@ -106,46 +109,49 @@ int echod(int sd)
 	char *bp;
 	int n, bytes_to_read, fd;
 	FILE * fp = NULL;
-
-
-	n = read(sd,&anotherRC,24);
+	//fd = creat("serverlog.txt",O_RDWR);
+	while(n = read(sd,&rcuv,20)){
+		printf("Received\n");
+		printf("%d %d %d %d %d", rcuv.rcid,rcuv.asnsrc,rcuv.asndest,rcuv.linkcapacity,rcuv.linkcost);
+		write(1, &rcuv, n);
+		memset(&rcuv, 0, sizeof(rcuv));
+		//write(fd, &rcuv, n);
+	}
 	//write(1,anotherRC,24);
-	printf("DATA: %d %d %s \n", anotherRC.rcid, anotherRC.asn, anotherRC.ipa);
-	fd = creat("serverlog.txt",O_RDWR);
-	printf("writing to file?");
-	write(fd, &anotherRC, n);
+	
+
+	//write(1, &rcurecv, n);
 	close(sd);
 	close(fp);
 	return (0);
 }
 
 /*	reaper		*/
-void reaper(int sig)
-{
+void reaper(int sig){
 	int status;
 	while (wait3(&status, WNOHANG, (struct rusage *)0) >= 0)
 		;
 }
 
 void readConfig(struct asninfo *asnlistt,struct rcinfo *myrcc, struct rcinfo *rclistt ) {
- int nor, noa;
- int i;
- FILE *fp;
- fp= fopen("config.txt", "r");
- //gets info for this RC
- fscanf(fp, "%d %d %s", &myrcc->rcid, &myrcc->asn, myrcc->ipa);
- //printf("%d %d %s \n", myrc.rcid, myrc.asn, myrc.ipa);
- fscanf(fp, "%d", &nor);
-//gets info to the RCs directly connected
- for (i=0; i<nor; i++) {
-   fscanf(fp, "%d %d %s", &rclistt[i].rcid, &rclistt[i].asn, rclistt[i].ipa);
-   //printf("%d %d %s \n", rclist[i].rcid, rclist[i].asn, rclist[i].ipa);
- }
- //gets info for the ASs connected
- fscanf(fp, "%d", &noa);
- for (i=0; i<noa; i++) {
-   fscanf(fp, "%d %d %d", &asnlistt[i].asn, &asnlistt[i].linkcapacity, &asnlistt[i].linkcost);
-   //printf("%d %d %d \n", asnlist[i].asn, asnlist[i].linkcapacity, asnlist[i].linkcost);
- }
- fclose(fp);
+	int nor, noa;
+	int i;
+	FILE *fp;
+	fp= fopen("config.txt", "r");
+	//gets info for this RC
+	fscanf(fp, "%d %d %s", &myrcc->rcid, &myrcc->asn, myrcc->ipa);
+	//printf("%d %d %s \n", myrc.rcid, myrc.asn, myrc.ipa);
+	fscanf(fp, "%d", &nor);
+	//gets info to the RCs directly connected
+	for (i=0; i<nor; i++) {
+	fscanf(fp, "%d %d %s", &rclistt[i].rcid, &rclistt[i].asn, rclistt[i].ipa);
+	//printf("%d %d %s \n", rclist[i].rcid, rclist[i].asn, rclist[i].ipa);
+	}
+	//gets info for the ASs connected
+	fscanf(fp, "%d", &noa);
+	for (i=0; i<noa; i++) {
+	fscanf(fp, "%d %d %d", &asnlistt[i].asn, &asnlistt[i].linkcapacity, &asnlistt[i].linkcost);
+	//printf("%d %d %d \n", asnlist[i].asn, asnlist[i].linkcapacity, asnlist[i].linkcost);
+	}
+	fclose(fp);
 }
