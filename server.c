@@ -35,7 +35,6 @@ int echod(int);
 void reaper(int);
 void readConfig(struct asninfo *asnlistt,struct rcinfo *myrcc, struct rcinfo *rclistt );
 
-
 int main(int argc, char **argv)
 {
 	int sd, new_sd, client_len, port;
@@ -110,16 +109,17 @@ int echod(int sd)
 	int n, bytes_to_read, fd;
 	FILE * fp = NULL;
 	//fd = creat("serverlog.txt",O_RDWR);
+	//upon connection, server will send info about itself to the connecting client.
+	//(not an acknowledgement)
 	while(n = read(sd,&rcuv,20)){
 		printf("Received\n");
-		printf("%d %d %d %d %d", rcuv.rcid,rcuv.asnsrc,rcuv.asndest,rcuv.linkcapacity,rcuv.linkcost);
-		write(1, &rcuv, n);
+		printf("%d %d %d %d %d\n", rcuv.rcid,rcuv.asnsrc,rcuv.asndest,rcuv.linkcapacity,rcuv.linkcost);
+		//write(1, &rcuv, n);
 		memset(&rcuv, 0, sizeof(rcuv));
+	    printf("Cleared: %d %d %d %d %d\n", rcuv.rcid,rcuv.asnsrc,rcuv.asndest,rcuv.linkcapacity,rcuv.linkcost);
 		//write(fd, &rcuv, n);
 	}
 	//write(1,anotherRC,24);
-	
-
 	//write(1, &rcurecv, n);
 	close(sd);
 	close(fp);
@@ -137,7 +137,7 @@ void readConfig(struct asninfo *asnlistt,struct rcinfo *myrcc, struct rcinfo *rc
 	int nor, noa;
 	int i;
 	FILE *fp;
-	fp= fopen("config.txt", "r");
+	fp= fopen("./configs/configrc1.txt", "r");
 	//gets info for this RC
 	fscanf(fp, "%d %d %s", &myrcc->rcid, &myrcc->asn, myrcc->ipa);
 	//printf("%d %d %s \n", myrc.rcid, myrc.asn, myrc.ipa);

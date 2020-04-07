@@ -8,6 +8,7 @@
 #include <strings.h>
 #include <fcntl.h>
 #include <string.h>
+#include <signal.h>
 #include <time.h>
 #include <unistd.h>
 //#include "configreaderv2.h"
@@ -37,16 +38,16 @@ void readConfig(struct asninfo *asnlistt,struct rcinfo *myrcc, struct rcinfo *rc
 int main(int argc, char **argv)
 {
 	int 	n, i, bytes_to_read;
-	int 	sd, port;
+	int 	sd, port, c;
 	struct	hostent		*hp;
 	struct	sockaddr_in server;
 	char	*host, *bp, rbuf[BUFLEN], sbuf[BUFLEN];
 	time_t lastsent,tnow;
 	printf("Read Config\n");
 	readConfig(asnlist,&myrc,rclist);
-	printf("%d %d %s \n", myrc.rcid, myrc.asn, myrc.ipa);
-	printf("%d %d %s \n", rclist[0].rcid, rclist[0].asn, rclist[0].ipa);
-	printf("%d %d %d \n", asnlist[0].asn, asnlist[0].linkcapacity, asnlist[0].linkcost);
+	// printf("%d %d %s \n", myrc.rcid, myrc.asn, myrc.ipa);
+	// printf("%d %d %s \n", rclist[0].rcid, rclist[0].asn, rclist[0].ipa);
+	// printf("%d %d %d \n", asnlist[0].asn, asnlist[0].linkcapacity, asnlist[0].linkcost);
 	switch(argc){
 	case 2:
 		host = argv[1];
@@ -82,52 +83,44 @@ int main(int argc, char **argv)
 	  fprintf(stderr, "Can't connect \n");
 	  exit(1);
 	}
-	rcus.rcid = myrc.rcid;
-	rcus.asnsrc = myrc.asn;
-	rcus.asndest = 2;
-	rcus.linkcapacity = 2;
-	rcus.linkcost = 4;
+
 	time(&lastsent);
-	printf("%ld\n",lastsent);
-	n = sizeof(rcus);
-	write(sd,&rcus,n);
+	printf("Timer start: %ld\n",lastsent);
+	// n = sizeof(rcus);
+	// write(sd,&rcus,n);
 	time(&tnow);
+			// for(c = 0;c < 3;c++){
+			// 	rcus.rcid = myrc.rcid;
+			// 	rcus.asnsrc = asnlist[c].asn;
+			// 	rcus.asndest = 2;
+			// 	rcus.linkcapacity = asnlist[c].linkcapacity;
+			// 	rcus.linkcost = asnlist[c].linkcost;
+			// 	printf("%d %d %d %d %d\n", rcus.rcid,rcus.asnsrc,rcus.asndest,rcus.linkcapacity,rcus.linkcost);
+			// 	memset(&rcus, 0, sizeof(rcus));
+			// }
+	//look into timer function
 	while(1){
-		// time(&tnow);
-		// if(( tnow - lastsent) == 5){
-		// 	printf("Time to write RCU");
-		// 	// n = sizeof(rcus);
-		// 	// printf("Size: %d\n",n);
-		// 	write(sd,&rcus,n);
-		// 	time(&lastsent);
-		// }
-		printf("Time to write RCU");
-		sleep(5);
-		write(sd,&rcus,n);
+		time(&tnow);
+		if(( tnow - lastsent) == 5){ //5 second delay
+			printf("Time to write RCU");
+			// n = sizeof(rcus);
+			// printf("Size: %d\n",n);
+			for(c = 0;c < 3;c++){
+				rcus.rcid = myrc.rcid;
+				rcus.asnsrc = asnlist[c].asn;
+				rcus.asndest = 2;
+				rcus.linkcapacity = asnlist[c].linkcapacity;
+				rcus.linkcost = asnlist[c].linkcost;
+				write(sd,&rcus,20);
+				memset(&rcus, 0, sizeof(rcus));
+			}
+			
+			time(&lastsent);
+		}
+		// sleep(5);
+		// printf("Time to write RCU");
+		// write(sd,&rcus,n);
 	}
-	
-	//write(sd,&rcus,n);
-
-	// while(n=read(0, sbuf, BUFLEN)){	/* get user message */
-	//   printf("Sending user message");
-	//   write(sd, sbuf, n);		/* send it out */
-	//   strcat(text,sbuf);
-	//   //printf("Receive: \n");
-	//   // bp = rbuf;
-	//   // bytes_to_read = n;
-	//   //while ((i = read(sd, bp, bytes_to_read)) > 0){
-	//   //	bp += i;
-	//   //	bytes_to_read -=i;
-	//   // }
-	//   //write(1, rbuf, n);
-	//   //printf("Transmit: \n");
-	//   int fp;
-	//   while(n=read(sd,rbuf,BUFLEN)){
-	//     fp = creat(text,O_RDWR);
-	//     write(fp,rbuf,BUFLEN);
-	//   }
-	// }
-
 	close(sd);
 	return(0);
 }
@@ -137,21 +130,22 @@ void readConfig(struct asninfo *asnlistt,struct rcinfo *myrcc, struct rcinfo *rc
 	int nor, noa;
 	int i;
 	FILE *fp;
-	fp= fopen("config.txt", "r");
+	fp= fopen("./configs/configrc2.txt", "r");
 	//gets info for this RC
 	fscanf(fp, "%d %d %s", &myrcc->rcid, &myrcc->asn, myrcc->ipa);
-	//printf("%d %d %s \n", myrc.rcid, myrc.asn, myrc.ipa);
+	printf("%d %d %s \n", myrc.rcid, myrc.asn, myrc.ipa);
 	fscanf(fp, "%d", &nor);
 	//gets info to the RCs directly connected
 	for (i=0; i<nor; i++) {
 	fscanf(fp, "%d %d %s", &rclistt[i].rcid, &rclistt[i].asn, rclistt[i].ipa);
-	//printf("%d %d %s \n", rclist[i].rcid, rclist[i].asn, rclist[i].ipa);
+	printf("%d %d %s \n", rclist[i].rcid, rclist[i].asn, rclist[i].ipa);
 	}
 	//gets info for the ASs connected
 	fscanf(fp, "%d", &noa);
 	for (i=0; i<noa; i++) {
 	fscanf(fp, "%d %d %d", &asnlistt[i].asn, &asnlistt[i].linkcapacity, &asnlistt[i].linkcost);
-	//printf("%d %d %d \n", asnlist[i].asn, asnlist[i].linkcapacity, asnlist[i].linkcost);
+		printf("%d %d %d \n", asnlist[i].asn, asnlist[i].linkcapacity, asnlist[i].linkcost);
 	}
+	printf("END READCONFIG\n");
 	fclose(fp);
 }
