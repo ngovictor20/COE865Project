@@ -1,2 +1,2 @@
 gcc -o server server.c -I.
-gcc -o client client.c -I.
+gcc -pthread -o client clientv2.c -I.

@@ -111,6 +111,9 @@ int echod(int sd)
 	//fd = creat("serverlog.txt",O_RDWR);
 	//upon connection, server will send info about itself to the connecting client.
 	//(not an acknowledgement)
+	//send info about itself
+	printf("A client has connected");
+	write(sd,&myrc,sizeof(myrc));
 	while(n = read(sd,&rcuv,20)){
 		printf("Received\n");
 		printf("%d %d %d %d %d\n", rcuv.rcid,rcuv.asnsrc,rcuv.asndest,rcuv.linkcapacity,rcuv.linkcost);

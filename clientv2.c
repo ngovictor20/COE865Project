@@ -11,6 +11,7 @@
 #include <signal.h>
 #include <time.h>
 #include <unistd.h>
+#include <pthread.h>
 //#include "configreaderv2.h"
 #define SERVER_TCP_PORT 3000	/* well-known port */
 #define BUFLEN		256	/* buffer length */
@@ -34,33 +35,39 @@ struct rcu{
 		int linkcost;
 }rcus;
 void readConfig(struct asninfo *asnlistt,struct rcinfo *myrcc, struct rcinfo *rclistt );
+void *clientThread(void *port);
 
 int main(int argc, char **argv)
 {
+    pthread_t thread1, thread2;
+	int iret1,iret2;
+	iret1 = pthread_create( &thread1, NULL, clientThread, (void*) 3000);
+	sleep(2);
+	iret2 = pthread_create( &thread2, NULL, clientThread, (void*) 3000);
+	while(1){
+		
+	}
+    
+
+}
+
+void *clientThread(void *pt){
 	int 	n, i, bytes_to_read;
-	int 	sd, port, c;
+	int 	sd, c,port;
 	struct	hostent		*hp;
 	struct	sockaddr_in server;
 	char	*host, *bp, rbuf[BUFLEN], sbuf[BUFLEN];
 	time_t lastsent,tnow;
+
+	port = (int*) pt;
 	printf("Read Config\n");
 	readConfig(asnlist,&myrc,rclist);
 	// printf("%d %d %s \n", myrc.rcid, myrc.asn, myrc.ipa);
 	// printf("%d %d %s \n", rclist[0].rcid, rclist[0].asn, rclist[0].ipa);
 	// printf("%d %d %d \n", asnlist[0].asn, asnlist[0].linkcapacity, asnlist[0].linkcost);
-	switch(argc){
-	case 2:
-		host = argv[1];
-		port = SERVER_TCP_PORT;
-		break;
-	case 3:
-		host = argv[1];
-		port = atoi(argv[2]);
-		break;
-	default:
-		fprintf(stderr, "Usage: %s host [port]\n", argv[0]);
-		exit(1);
-	}
+	host = "localhost";
+	port = port;
+
 
 	/* Create a stream socket	*/	
 	if ((sd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
@@ -83,6 +90,7 @@ int main(int argc, char **argv)
 	  fprintf(stderr, "Can't connect \n");
 	  exit(1);
 	}
+	printf("Connected to server\n");
 
 	read(sd,&connectedrc,sizeof(myrc));
 	printf("Bytes read from server");
