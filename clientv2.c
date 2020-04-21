@@ -47,12 +47,12 @@ int main(int argc, char **argv)
 
 	int err,i=0;
 	if(argc < 3){
-		printf("Please input more command arguments\n");
+		printf("Please input more command arguments %s [path to config] [[ports (up to 3)]]\n");
 		exit(1);
 	}
-	else if(argc == 5){
+	else if(argc > 2 && argc < 6){
 		configPath = argv[1];
-		while(i<3){
+		while(i<(argc-2)){
 			printf("Creating thread %d\n",i);
 			err = pthread_create( &thread1, NULL, clientThread, (void*) atoi(argv[2+i]));
 			if(err != 0){
