@@ -33,29 +33,31 @@
  }rcuv;
 int echod(int);
 void reaper(int);
-void readConfig(struct asninfo *asnlistt,struct rcinfo *myrcc, struct rcinfo *rclistt );
+void readConfig(struct asninfo *asnlistt,struct rcinfo *myrcc, struct rcinfo *rclistt, char *configPath);
 
 int main(int argc, char **argv)
 {
 	int sd, new_sd, client_len, port;
+	char *config;
 	struct sockaddr_in server, client;
-	printf("Read Config");
-	readConfig(asnlist,&myrc,rclist);
-	printf("%d %d %s \n", myrc.rcid, myrc.asn, myrc.ipa);
-	printf("%d %d %s \n", rclist[0].rcid, rclist[0].asn, rclist[0].ipa);
-	printf("%d %d %d \n", asnlist[0].asn, asnlist[0].linkcapacity, asnlist[0].linkcost);
+	
 	switch (argc)
 	{
-	case 1:
-		port = SERVER_TCP_PORT;
-		break;
-	case 2:
-		port = atoi(argv[1]);
+	case 3:
+		config = argv[1];
+		port = atoi(argv[2]);
+		printf("Server stuff: %s, %d \n",config, port);
 		break;
 	default:
 		fprintf(stderr, "Usage: %d [port]\n", argv[0]);
 		exit(1);
 	}
+	printf("Read Config Call\n");
+	readConfig(asnlist,&myrc,rclist,config);
+	printf("%d %d %s \n", myrc.rcid, myrc.asn, myrc.ipa);
+	printf("%d %d %s \n", rclist[0].rcid, rclist[0].asn, rclist[0].ipa);
+	printf("%d %d %d \n", asnlist[0].asn, asnlist[0].linkcapacity, asnlist[0].linkcost);
+
 
 	/* Create a stream socket	*/
 	if ((sd = socket(AF_INET, SOCK_STREAM, 0)) == -1){
@@ -136,11 +138,13 @@ void reaper(int sig){
 		;
 }
 
-void readConfig(struct asninfo *asnlistt,struct rcinfo *myrcc, struct rcinfo *rclistt ) {
+void readConfig(struct asninfo *asnlistt,struct rcinfo *myrcc, struct rcinfo *rclistt,char *configPath ) {
 	int nor, noa;
 	int i;
 	FILE *fp;
-	fp= fopen("./configs/configrc1.txt", "r");
+	//"./configs/configrc1.txt"
+	printf("Opening filepath %s\n",configPath);
+	fp= fopen(configPath, "r");
 	//gets info for this RC
 	fscanf(fp, "%d %d %s", &myrcc->rcid, &myrcc->asn, myrcc->ipa);
 	//printf("%d %d %s \n", myrc.rcid, myrc.asn, myrc.ipa);

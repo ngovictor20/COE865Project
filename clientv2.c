@@ -34,21 +34,37 @@ struct rcu{
 		int linkcapacity;
 		int linkcost;
 }rcus;
-void readConfig(struct asninfo *asnlistt,struct rcinfo *myrcc, struct rcinfo *rclistt );
+pthread_mutex_t lock;
+pthread_t tid[3];
+char *configPath;
+
+void readConfig(struct asninfo *asnlistt,struct rcinfo *myrcc, struct rcinfo *rclistt,char * configPath);
 void *clientThread(void *port);
 
 int main(int argc, char **argv)
 {
     pthread_t thread1, thread2;
-	int iret1,iret2;
-	iret1 = pthread_create( &thread1, NULL, clientThread, (void*) 3000);
-	sleep(2);
-	iret2 = pthread_create( &thread2, NULL, clientThread, (void*) 3000);
-	while(1){
-		
-	}
-    
 
+	int err,i=0;
+	if(argc < 3){
+		printf("Please input more command arguments\n");
+		exit(1);
+	}
+	else if(argc == 5){
+		configPath = argv[1];
+		while(i<3){
+			printf("Creating thread %d\n",i);
+			err = pthread_create( &thread1, NULL, clientThread, (void*) atoi(argv[2+i]));
+			if(err != 0){
+				printf("Error creating thread: %s\n",strerror(err));
+			}
+			pthread_join(tid[i], NULL); 
+			i++;
+		}
+	}
+	while(1){
+	}
+    pthread_mutex_destroy(&lock);
 }
 
 void *clientThread(void *pt){
@@ -58,13 +74,11 @@ void *clientThread(void *pt){
 	struct	sockaddr_in server;
 	char	*host, *bp, rbuf[BUFLEN], sbuf[BUFLEN];
 	time_t lastsent,tnow;
-
 	port = (int*) pt;
 	printf("Read Config\n");
-	readConfig(asnlist,&myrc,rclist);
-	// printf("%d %d %s \n", myrc.rcid, myrc.asn, myrc.ipa);
-	// printf("%d %d %s \n", rclist[0].rcid, rclist[0].asn, rclist[0].ipa);
-	// printf("%d %d %d \n", asnlist[0].asn, asnlist[0].linkcapacity, asnlist[0].linkcost);
+	pthread_mutex_lock(&lock);
+	readConfig(asnlist,&myrc,rclist,configPath);
+	pthread_mutex_unlock(&lock);
 	host = "localhost";
 	port = port;
 
@@ -93,13 +107,11 @@ void *clientThread(void *pt){
 	printf("Connected to server\n");
 
 	read(sd,&connectedrc,sizeof(myrc));
-	printf("Bytes read from server");
+	printf("Bytes have been read from server");
 	printf("%d %d %s\n", connectedrc.rcid, connectedrc.asn, connectedrc.ipa);
 
 	time(&lastsent);
 	printf("Timer start: %ld\n",lastsent);
-	// n = sizeof(rcus);
-	// write(sd,&rcus,n);
 	time(&tnow);
 	//look into timer function
 	int size = sizeof(asnlist)/sizeof(asnlist[0]);
@@ -120,24 +132,20 @@ void *clientThread(void *pt){
 				write(sd,&rcus,20);
 				memset(&rcus, 0, sizeof(rcus));
 			}
-			
 			time(&lastsent);
 			fflush(stdout);
 		}
-		// sleep(5);
-		// printf("Time to write RCU");
-		// write(sd,&rcus,n);
 	}
 	close(sd);
 	return(0);
 }
 
 
-void readConfig(struct asninfo *asnlistt,struct rcinfo *myrcc, struct rcinfo *rclistt ) {
+void readConfig(struct asninfo *asnlistt,struct rcinfo *myrcc, struct rcinfo *rclistt,char *config ) {
 	int nor, noa;
 	int i;
 	FILE *fp;
-	fp= fopen("./configs/configrc2.txt", "r");
+	fp= fopen(config, "r");
 	//gets info for this RC
 	fscanf(fp, "%d %d %s", &myrcc->rcid, &myrcc->asn, myrcc->ipa);
 	printf("%d %d %s \n", myrc.rcid, myrc.asn, myrc.ipa);

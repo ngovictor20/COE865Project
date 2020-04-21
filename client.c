@@ -125,7 +125,7 @@ int main(int argc, char **argv)
 }
 
 
-void readConfig(struct asninfo *asnlistt,struct rcinfo *myrcc, struct rcinfo *rclistt ) {
+void readConfig(struct asninfo *asnlistt,struct rcinfo *myrcc, struct rcinfo *rclistt) {
 	int nor, noa;
 	int i;
 	FILE *fp;
