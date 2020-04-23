@@ -107,30 +107,36 @@ void *clientThread(void *pt){
 	printf("Connected to server\n");
 
 	read(sd,&connectedrc,sizeof(myrc));
-	printf("Bytes have been read from server");
-	printf("%d %d %s\n", connectedrc.rcid, connectedrc.asn, connectedrc.ipa);
+	printf("Server Info Has Been Read");
+	printf("Server Response: %d %d %s\n", connectedrc.rcid, connectedrc.asn, connectedrc.ipa);
+	// write(sd,&myrc,sizeof(myrc));
+	// printf("Writing myRC to Server");
+
 
 	time(&lastsent);
-	printf("Timer start: %ld\n",lastsent);
+	//printf("Timer start: %ld\n",lastsent);
 	time(&tnow);
 	//look into timer function
 	int size = sizeof(asnlist)/sizeof(asnlist[0]);
-	printf("Size: %d",size);
+	//printf("Size: %d",size);
 	while(1){
 		time(&tnow);
 		if(( tnow - lastsent) == 10){ //5 second delay
-			printf("Time to write RCU\n");
+			//printf("Time to write RCU\n");
 			// n = sizeof(rcus);
 			// printf("Size: %d\n",n);
 			int size = sizeof(asnlist)/sizeof(asnlist[0]);
-			for(c = 0;c < 4;c++){ //we should make this dynamic
-				rcus.rcid = myrc.rcid;
-				rcus.asnsrc = asnlist[c].asn;
-				rcus.asndest = 2;
-				rcus.linkcapacity = asnlist[c].linkcapacity;
-				rcus.linkcost = asnlist[c].linkcost;
-				write(sd,&rcus,20);
-				memset(&rcus, 0, sizeof(rcus));
+			for(c = 0;c < size;c++){ //we should make this dynamic
+				if((asnlist[c].asn  != connectedrc.asn) && asnlist[c].asn != 0){
+					rcus.rcid = myrc.rcid;
+					rcus.asnsrc = asnlist[c].asn;
+					rcus.asndest = connectedrc.asn;
+					rcus.linkcapacity = asnlist[c].linkcapacity;
+					rcus.linkcost = asnlist[c].linkcost;
+					write(sd,&rcus,20);
+					memset(&rcus, 0, sizeof(rcus));
+				}
+				printf("%d\n",c);
 			}
 			time(&lastsent);
 			fflush(stdout);
@@ -148,17 +154,17 @@ void readConfig(struct asninfo *asnlistt,struct rcinfo *myrcc, struct rcinfo *rc
 	fp= fopen(config, "r");
 	//gets info for this RC
 	fscanf(fp, "%d %d %s", &myrcc->rcid, &myrcc->asn, myrcc->ipa);
-	printf("%d %d %s \n", myrc.rcid, myrc.asn, myrc.ipa);
+	// printf("%d %d %s \n", myrc.rcid, myrc.asn, myrc.ipa);
 	fscanf(fp, "%d", &nor);
 	//gets info to the RCs directly connected
 	for (i=0; i<nor; i++) {
 	fscanf(fp, "%d %d %s", &rclistt[i].rcid, &rclistt[i].asn, rclistt[i].ipa);
-	printf("%d %d %s \n", rclist[i].rcid, rclist[i].asn, rclist[i].ipa);
+		// printf("%d %d %s \n", rclist[i].rcid, rclist[i].asn, rclist[i].ipa);
 	}
 	//gets info for the ASs connected
 	fscanf(fp, "%d", &noa);
 	for (i=0; i<noa; i++) {
-	fscanf(fp, "%d %d %d", &asnlistt[i].asn, &asnlistt[i].linkcapacity, &asnlistt[i].linkcost);
+		fscanf(fp, "%d %d %d", &asnlistt[i].asn, &asnlistt[i].linkcapacity, &asnlistt[i].linkcost);
 		printf("%d %d %d \n", asnlist[i].asn, asnlist[i].linkcapacity, asnlist[i].linkcost);
 	}
 	printf("END READCONFIG\n");

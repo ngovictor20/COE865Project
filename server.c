@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <strings.h>
 #include <fcntl.h>
+#include <pthread.h>
 //#include "configreaderv2.h"
 #define SERVER_TCP_PORT 3000 /* well-known port */
 #define BUFLEN 256			 /* buffer length */
@@ -23,7 +24,7 @@
 	int rcid;
 	int asn;
 	char ipa[15];
- } myrc,anotherRC, rclist[MAX_ADJ];
+ } myrc, rclist[MAX_ADJ];
  struct rcu{
 	int rcid;
 	int asnsrc;
@@ -31,9 +32,19 @@
 	int linkcapacity;
 	int linkcost;
  }rcuv;
+ struct route{
+	 int rcsrc;
+	 int asn;
+	 int src;
+	 int linkcapacity;
+	 int linkcost;
+ } routingT[MAX_ADJ];
+
+pthread_mutex_t lock;
+
 int echod(int);
 void reaper(int);
-void readConfig(struct asninfo *asnlistt,struct rcinfo *myrcc, struct rcinfo *rclistt, char *configPath);
+void readConfig(struct asninfo *asnlistt,struct rcinfo *myrcc, struct rcinfo *rclistt,struct route *table, char *configPath);
 
 int main(int argc, char **argv)
 {
@@ -53,7 +64,7 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 	printf("Read Config Call\n");
-	readConfig(asnlist,&myrc,rclist,config);
+	readConfig(asnlist,&myrc,rclist,routingT,config);
 	printf("%d %d %s \n", myrc.rcid, myrc.asn, myrc.ipa);
 	printf("%d %d %s \n", rclist[0].rcid, rclist[0].asn, rclist[0].ipa);
 	printf("%d %d %d \n", asnlist[0].asn, asnlist[0].linkcapacity, asnlist[0].linkcost);
@@ -110,21 +121,72 @@ int echod(int sd)
 	char *bp;
 	int n, bytes_to_read, fd;
 	FILE * fp = NULL;
+	struct rcinfo connectedRC;
 	//fd = creat("serverlog.txt",O_RDWR);
-	//upon connection, server will send info about itself to the connecting client.
-	//(not an acknowledgement)
 	//send info about itself
-	printf("A client has connected");
+	printf("A client has connected\n");
 	write(sd,&myrc,sizeof(myrc));
+	// printf("Client is sending its info\n");
+	// read(sd,&connectedRC,sizeof(connectedRC));
+
 	while(n = read(sd,&rcuv,20)){
+		int rcount = 0,srccost=0,count,asnnum;
 		printf("Received\n");
-		printf("%d %d %d %d %d\n", rcuv.rcid,rcuv.asnsrc,rcuv.asndest,rcuv.linkcapacity,rcuv.linkcost);
+		printf("RCID SRC:%d  ASN:%d DEST ASN:%d CAP:%d COST:%d\n", rcuv.rcid,rcuv.asnsrc,rcuv.asndest,rcuv.linkcapacity,rcuv.linkcost);
 		//write(1, &rcuv, n);
+		//check routes
+		for(rcount = 0; rcount < MAX_ADJ;rcount++){
+			if(rcuv.asnsrc == routingT[rcount].asn){
+				printf("Found a route to compare to:\n");
+				//find the cost to the source
+				printf("Finding the cost of source\n");
+				printf("Getting ASN Info\n");
+				for(count = 0;count < MAX_ADJ;count++){
+					if(rcuv.rcid == rclist[count].rcid){
+						asnnum = rclist[count].asn;
+						int x;
+						for(x=0;x<MAX_ADJ;x++){
+							if(rclist[count].asn == asnlist[x].asn){
+								srccost = asnlist[x].linkcost;
+								printf("Found cost of %d, total: %d\n",srccost,srccost+rcuv.linkcost);
+								break;
+							}
+						}
+						break;
+					}
+				}
+
+				if((rcuv.linkcost+srccost) < routingT[rcount].linkcost){
+					printf("Advertised linkcost is shorter\n");
+					routingT[rcount].rcsrc = rcuv.rcid;
+					routingT[rcount].asn = rcuv.asnsrc;
+					routingT[rcount].src = rcuv.rcid;
+					routingT[rcount].linkcapacity = rcuv.linkcapacity;
+					routingT[rcount].linkcost = rcuv.linkcost+srccost;
+				}
+				break;
+			}
+			if(routingT[rcount].rcsrc == 0){
+				//this means that we went through th list, and we gotta add this entry into the table
+				printf("NEW ROUTE!\n");
+				routingT[rcount].rcsrc = rcuv.rcid;
+				routingT[rcount].asn = rcuv.asnsrc;
+				routingT[rcount].src = rcuv.rcid;
+				routingT[rcount].linkcapacity = rcuv.linkcapacity;
+				routingT[rcount].linkcost = rcuv.linkcost+srccost;
+				break;
+			}
+		}
+		printf("-------ROUTING TABLE------\n");
+		for(rcount = 0;rcount < MAX_ADJ;rcount++){
+			if(routingT[rcount].rcsrc != 0){
+			printf("Route: RCSRC: %d ASN:%d SRC:%d CAP:%d COST:%d \n",routingT[rcount].rcsrc,routingT[rcount].asn,routingT[rcount].src,routingT[rcount].linkcapacity,routingT[rcount].linkcost);
+			}
+		}
 		memset(&rcuv, 0, sizeof(rcuv));
-	    printf("Cleared: %d %d %d %d %d\n", rcuv.rcid,rcuv.asnsrc,rcuv.asndest,rcuv.linkcapacity,rcuv.linkcost);
+	    //printf("Cleared: %d %d %d %d %d\n", rcuv.rcid,rcuv.asnsrc,rcuv.asndest,rcuv.linkcapacity,rcuv.linkcost);
 		//write(fd, &rcuv, n);
 	}
-	//write(1,anotherRC,24);
 	//write(1, &rcurecv, n);
 	close(sd);
 	close(fp);
@@ -138,13 +200,14 @@ void reaper(int sig){
 		;
 }
 
-void readConfig(struct asninfo *asnlistt,struct rcinfo *myrcc, struct rcinfo *rclistt,char *configPath ) {
+void readConfig(struct asninfo *asnlistt,struct rcinfo *myrcc, struct rcinfo *rclistt,struct route *table,char *configPath ) {
 	int nor, noa;
 	int i;
-	FILE *fp;
+	FILE *fp,*fd;
 	//"./configs/configrc1.txt"
 	printf("Opening filepath %s\n",configPath);
 	fp= fopen(configPath, "r");
+	//fd = fopen("./","w");
 	//gets info for this RC
 	fscanf(fp, "%d %d %s", &myrcc->rcid, &myrcc->asn, myrcc->ipa);
 	//printf("%d %d %s \n", myrc.rcid, myrc.asn, myrc.ipa);
@@ -158,7 +221,13 @@ void readConfig(struct asninfo *asnlistt,struct rcinfo *myrcc, struct rcinfo *rc
 	fscanf(fp, "%d", &noa);
 	for (i=0; i<noa; i++) {
 	fscanf(fp, "%d %d %d", &asnlistt[i].asn, &asnlistt[i].linkcapacity, &asnlistt[i].linkcost);
-	//printf("%d %d %d \n", asnlist[i].asn, asnlist[i].linkcapacity, asnlist[i].linkcost);
+	table[i].asn = asnlistt[i].asn;
+	table[i].rcsrc = myrcc->rcid;
+	table[i].src = myrcc->asn;
+	table[i].linkcapacity = asnlistt[i].linkcapacity;
+	table[i].linkcost = asnlistt[i].linkcost;
+	//printf("%d %d %d \n", asnlistt[i].asn, asnlistt[i].linkcapacity, asnlistt[i].linkcost);
+	printf("Route: RCSRC: %d ASN:%d SRC:%d CAP:%d COST:%d \n",table[i].rcsrc, table[i].asn, table[i].src,table[i].linkcapacity, table[i].linkcost);
 	}
 	fclose(fp);
 }
